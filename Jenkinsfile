@@ -19,7 +19,7 @@ pipeline {
         stage('Push to ECR') {
             steps {
                 script {
-                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'b9b33b38-9805-4f0e-aea0-bbdb2c6c3c71', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', accessKeyVariable: 'AWS_ACCESS_KEY_ID', credentialsId: 'aws-credentials-id', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
                         docker.withRegistry("https://${061485165494}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com", 'ecr-credentials') {
                             docker.image("${ECR_REPO}/${IMAGE_NAME}:${env.BUILD_NUMBER}").push()
                         }
