@@ -40,6 +40,7 @@
             // Cleanup Docker images
             script {
                 sh "docker rmi ${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}"
+                sh "docker rmi ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}"
             }
         }
     }
