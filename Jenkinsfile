@@ -29,7 +29,12 @@ pipeline {
                     // Build and push Docker image to AWS ECR
                     sh "docker build -t ${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG} ."
                     sh "docker tag ${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}"
-                    sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}"
+                    def retryCount = 3
+
+                    retry(retryCount) {
+                        sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}" || error('Failed to push Docker image')
+                    }
+                    
                 }
             }
         }
