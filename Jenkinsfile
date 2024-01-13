@@ -29,10 +29,24 @@ pipeline {
                     // Build and push Docker image to AWS ECR
                     sh "docker build -t ${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG} ."
                     sh "docker tag ${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}"
+                    
                     def retryCount = 3
-
-                    retry(retryCount) {
-                        sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}" || error('Failed to push Docker image')
+                    for (int i = 0; i < retryCount; i++) {
+                        try {
+                            sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}"
+                            // If the push succeeds, break out of the loop
+                            break
+                        } catch (Exception e) {
+                            if (i == retryCount - 1) {
+                                // If this is the last attempt, report the error and fail the build
+                                error "Failed to push Docker image. Error: ${e}"
+                                currentBuild.result = 'FAILURE' // Mark the build as failed but continue
+                            } else {
+                                // If not the last attempt, print a message and retry after a delay
+                                echo "Retry ${i + 1}/${retryCount} - Waiting before retrying..."
+                                sleep 10 // Adjust the delay as needed
+                            }
+                        }
                     }
                     
                 }
