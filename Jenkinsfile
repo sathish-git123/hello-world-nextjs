@@ -23,19 +23,19 @@ pipeline {
                     def dockerImage = docker.build("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}")
 
                     // Login to AWS ECR
-                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr-credentials', accessKeyVariable: 'AKIAQ4UGNFO3IKV46UGR', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id', accessKeyVariable: 'AKIAQ4UGNFO3IKV46UGR', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
                         dockerImage.inside("--entrypoint=''") {
                             sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
                         }
                     }
 
                     // Tag the Docker image for AWS ECR
-                    docker.withRegistry("https://${AWS_ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com", 'aws-ecr-credentials') {
+                    docker.withRegistry("https://${AWS_ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com", 'aws-credentials-id') {
                         dockerImage.tag("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}", "${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}")
                     }
 
                     // Push the Docker image to AWS ECR
-                    docker.withRegistry("https://${AWS_ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com", 'aws-ecr-credentials') {
+                    docker.withRegistry("https://${AWS_ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com", 'aws-credentials-id') {
                         dockerImage.push("${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}")
                     }
                 }
