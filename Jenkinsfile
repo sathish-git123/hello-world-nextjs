@@ -33,7 +33,6 @@ pipeline {
 
                     retry(retryCount) {
                         sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}" || error('Failed to push Docker image')
-                        currentBuild.result = 'FAILURE' //
                     }
                     
                 }
