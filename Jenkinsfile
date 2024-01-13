@@ -1,59 +1,48 @@
 pipeline {
     agent any
-    
+
     environment {
-        AWS_DEFAULT_REGION = 'us-east-1'
-        ECR_REPO_NAME = 'public.ecr.aws/v3a2v2q2/node-js_project'
-        DOCKER_IMAGE_TAG = 'latest'
-        AWS_ACCOUNT_ID = '061485165494'
+        DOCKER_IMAGE_NAME = "hello-world-nextjs"
+        DOCKER_IMAGE_TAG = "latest"
+        ECR_REPO_NAME = "public.ecr.aws/v3a2v2q2/node-js_project"
+        AWS_REGION = "us-east-1"
+        AWS_ECR_ACCOUNT_ID = "061485165494"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                script {
-                    // Checkout the source code from the GitHub repository
-                    checkout scm
-                }
+                checkout scm
             }
         }
 
-        stage('Build and Push to ECR') {
+        stage('Build and Push Docker Image') {
             steps {
                 script {
-                    // Authenticate Docker with AWS ECR
-                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials-id', accessKeyVariable: 'AKIAQ4UGNFO3IKV46UGR', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-                        sh "aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
-                    }
+                    // Build Docker image
+                    def dockerImage = docker.build("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}")
 
-                    // Build and push Docker image to AWS ECR
-                    sh "docker build -t ${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG} ."
-                    sh "docker tag ${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG} ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}"
-                    
-                    def retryCount = 3
-                    for (int i = 0; i < retryCount; i++) {
-                        try {
-                            sh "docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}"
-                            // If the push succeeds, break out of the loop
-                            break
-                        } catch (Exception e) {
-                            if (i == retryCount - 1) {
-                                // If this is the last attempt, report the error and fail the build
-                                error "Failed to push Docker image. Error: ${e}"
-                                currentBuild.result = 'FAILURE' // Mark the build as failed but continue
-                            } else {
-                                // If not the last attempt, print a message and retry after a delay
-                                echo "Retry ${i + 1}/${retryCount} - Waiting before retrying..."
-                                sleep 10 // Adjust the delay as needed
-                            }
+                    // Login to AWS ECR
+                    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-ecr-credentials', accessKeyVariable: 'AKIAQ4UGNFO3IKV46UGR', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+                        dockerImage.inside("--entrypoint=''") {
+                            sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${AWS_ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
                         }
                     }
-                    
+
+                    // Tag the Docker image for AWS ECR
+                    docker.withRegistry("https://${AWS_ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com", 'aws-ecr-credentials') {
+                        dockerImage.tag("${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}", "${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}")
+                    }
+
+                    // Push the Docker image to AWS ECR
+                    docker.withRegistry("https://${AWS_ECR_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com", 'aws-ecr-credentials') {
+                        dockerImage.push("${ECR_REPO_NAME}:${DOCKER_IMAGE_TAG}")
+                    }
                 }
             }
         }
-    }
 
+    }
     post {
         always {
             // Cleanup Docker images
